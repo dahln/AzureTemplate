@@ -1,5 +1,7 @@
 ## What & Why
-This project is an example of one way to build a .NET Web application, using Blazor, Web API, and SQL. Demonstrating simple CRUD & Search operations, protected by Authentication/Authorization. This is an active application that I continue to update as .NET is updated and expanded. I created this template because the stock templates from Microsoft do not offer all the functionality I want in a template.
+This project is an example of one way to build a .NET Web application, using Blazor, Web API, and SQL. Demonstrating simple CRUD & Search operations, protected by Authentication/Authorization. This application also demonstrates how to upload and retrieve files form Azure Blob Storage. This is an active application that I continue to update as .NET is updated and expanded. I created this template because the stock templates from Microsoft do not offer all the functionality I want in a template.
+
+This application is based on my [BlazorTemplate](https://github.com/dahln/BlazorTeplate). It is modified to use MSSQL and Azure Blob Storage.
 
 Some of the page and components in the WASM client app are copied from or derived from the stock Microsoft templates, for example login and register.
 
