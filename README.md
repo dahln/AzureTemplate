@@ -3,17 +3,13 @@ This project is an example of one way to build a .NET Web application, using Bla
 
 Some of the page and components in the WASM client app are copied from or derived from the stock Microsoft templates, for example login and register.
 
-## Demo
-[https://demo.dahln.com/](https://demo.dahln.com/)
-
-My preferred method of hosting is to use an Azure App Service. This template uses Sqlite for the database. In my experience Sqlite doesn't perform reliably on an Azure App Service. This demo is hosted on an Ubuntu server. You can review the CI/CD action for ideas on deploying to a Linux server instead of an App Service. Feel free to reach out if you have questions for setting up a server. 
-
 ## Technologies
  - .NET 8 & C#
  - Web API
  - Blazor WASM
  - Web API
- - SQL
+ - MS SQL
+ - Azure Blob Storage
  - Identity API
  - Identity API 2FA
  - GitHub Actions
@@ -40,7 +36,7 @@ Getting started with this project is easy.
 5. You can create data in the UI, or you can use the API and the 'seed' method to create a large quantity of seed data to expirament with.
 
 ## Misc Details    
-1. This project has no required outside dependencies to get started. The database is a SQLite DB, and the database will be created automatically when you startup the project the first time. You simply need to clone the repo, then run the API project by calling 'dotnet watch' from the API project folder.
+1. This project has no required outside dependencies to get started. The database is a MSSQL DB - you need to create SQL DB and put the DB connection string in the AppSettings.json in the API project. The database will be created automatically when you startup the project the first time.
 2. Authentication is handled by ASP Identity, and is stored in your own DB.
 3. On optional (but recommended) dependency is SendGrid. This template uses SendGrid to send emails. The template does not require SendGrid in order to work, however some features are not available until you add a SendGrid API key and system email address to the AppSettings.json. Features you cannot use without SendGrid include:
    - Account Activation and Email Confirmation
@@ -65,9 +61,6 @@ There are tools to handle API versioning. Add which ever tools you prefer. This 
 
 ## [SendGrid](https://sendgrid.com/en-us/pricing)
 This project uses SendGrid to send emails. A SendGrid API key is required. The demo has a key configured, but that value/key is not checked into the Repo. You will need to specify your own SendGrid API key and system email address. Some features that require email are not available until you provide the necessary SendGrid values. It is a simple process to create your own SendGrid account and retreive your API key.
-
-## Why SQLite?
-It runs on Windows and Linux. It is great for this template. Depending on your projects needs, it may work for production. If you need more than SQLite offers then I recommend switching to Azure SQL. If you switch to Azure SQL, besure to delete your SQLite DB migrations and create new a 'Initial Migration' for your new Azure SQL DB.
 
 ## DB Migrations
 This project includes the necessary "Initial Creation" DB migration, used for the initial creation of a DB when the application connects to the DB for the first time. The Program.cs in the API project will automatically check for DB migrations which need to run, and run them automatically. You can run the DB migrations manually if desired. The commands below outline how to generate a DB migration and run a migration.
