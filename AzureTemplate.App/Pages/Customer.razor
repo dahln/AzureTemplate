@@ -1,0 +1,589 @@
+@page "/customer"
+@page "/customer/{id}"
+
+@using Azure.Storage
+@using Azure.Storage.Blobs
+@using Azure.Storage.Blobs.Models
+@using AzureTemplate.Common
+
+@inject NavigationManager _navigationManager
+@inject AzureTemplate.App.Services.API API
+@inject IModalService _modalService
+@inject IToastService _toastService
+@inject SpinnerService _spinnerService
+@inject IJSRuntime JSRuntime
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+@attribute [Authorize]
+
+<div class="mb-3">
+    <NavLink href="@($"customers")">
+        <i class="bi bi-arrow-left-short"></i> Back to Search
+    </NavLink>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <h3>
+            Customer @if (Locked == true)
+            {<span class="btn btn-link" @onclick="ToggleEditing">Edit</span>}
+        </h3>
+    </div>
+</div>
+
+<fieldset disabled="@Locked">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="row">
+                <div class="col-md-6 text-center">
+                    <div class="row">
+                        <div class="col-md-12">
+                            @if (string.IsNullOrEmpty(customer.ImageBase64))
+                            {
+                                <i class="bi bi-person-square business-logo-placeholder mt-md-5 mb-2"></i>
+                            }
+                            else
+                            {
+                                <img src="@customer.ImageBase64" class="w-100 mb-2" />
+                            }
+                        </div>
+                    </div>
+                    @if (!Locked)
+                    {
+                        <div class="row">
+                            <div class="col-md-12">
+                                <label class="btn btn-outline-primary w-100">
+                                    <InputFile OnChange="OnInputFileChange" style="display:none;" accept="image/*" />Upload File (32mb size limit)
+                                </label>
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(customer.ImageBase64))
+                        {
+                            <div class="row mt-1">
+                                <div class="col-md-12">
+                                    <input type="button" value="Remove Image" class="btn btn-outline-danger w-100" @onclick="RemoveFile" />
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="col-md-6">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Name</label>
+                            <input type="text" class="form-control" @bind="customer.Name" />
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-lg-12">
+                            <label class="form-label">Birth Date</label>
+                            <input type="date" class="form-control" @bind="customer.BirthDate" />
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Gender</label>
+                            <select class="form-select" @bind="customer.Gender">
+                                <option value="@Gender.NotSpecified">@Gender.NotSpecified.GetDescription()</option>
+                                <option value="@Gender.Male">@Gender.Male.GetDescription()</option>
+                                <option value="@Gender.Female">@Gender.Female.GetDescription()</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label>Active</label>
+                            <input type="checkbox" @bind="customer.Active" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Email</label>
+                    <input type="text" class="form-control" @bind="customer.Email" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Phone</label>
+                    <input type="text" class="form-control" @bind="customer.Phone" />
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <label class="form-label">Address</label>
+                    <input type="text" class="form-control" @bind="customer.Address" />
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">City</label>
+                    <input type="text" class="form-control" @bind="customer.City" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">State</label>
+                    <input type="text" class="form-control" @bind="customer.State" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Postal</label>
+                    <input type="text" class="form-control" @bind="customer.Postal" />
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <label class="form-label">Notes</label>
+                    <textarea class="form-control" rows="7" @bind="customer.Notes"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</fieldset>
+
+<div class="row">
+    <div class="col-md-12">
+        <hr />
+    </div>
+</div>
+
+@if (Locked == false)
+{
+<div class="row">
+    <div class="col-md-6">
+        @if (!string.IsNullOrEmpty(Id))
+        {
+            <button class="btn btn-warning btn-customer" @onclick="Delete"><i class="far fa-trash-alt me-1"></i>Delete</button>
+        }
+    </div>
+    <div class="col-md-6">
+        <button class="btn btn-primary btn-customer float-end" @onclick="Save"><i class="far fa-save me-1"></i>Save</button>
+        @if (!string.IsNullOrEmpty(Id))
+        {
+            <button class="btn btn-outline-danger btn-customer float-end me-lg-2 me-md-2" @onclick="CancelChanges"><i class="bi bi-x-lg me-1"></i>Cancel Changes</button>
+        }
+    </div>
+</div>
+}
+
+
+
+
+
+@if(Id != null)
+{
+<div class="row mt-5">
+    <div class="col-md-12">
+        <h3>
+            Customer Files
+        </h3>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        @*<button class="btn btn-primary w-100"><i class="fas fa-plus me-2"></i>Add Files</button>*@
+        <label class="btn btn-primary w-100">
+            <i class="fas fa-plus me-2"></i>
+            <InputFile OnChange="UploadCustomerFiles" style="display:none;" multiple /> Add Files
+        </label>
+    </div>
+    <div class="col-md-9">
+        <form class="input-group float-end" @onsubmit="(() => SearchCustomerFiles(0, false))">
+            <input type="text" class="form-control" aria-label="Text input with dropdown button" @bind="Search.FilterText" />
+            <div class="input-group-append">
+                <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search me-2"></i>Search</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="row mt-1">
+    <div class="col-md-12">
+        <div class="btn btn-link btn-sm float-end pointer" @onclick="(() => SearchCustomerFiles(0, true))">Reset File Search</div>
+    </div>
+</div>
+@if (UploadProgress > 0)
+{
+    <div class="row mt-1">
+        <div class="col-md-12">
+            <div class="progress" style="height: 20px;">
+                <div class="progress-bar bg-info" role="progressbar" aria-valuenow="@(UploadProgress)" aria-valuemin="0" aria-valuemax="100" style="color: black; width: @(UploadProgress)%">@($"{UploadProgress.ToString("0")}% Uploading {UploadFileIndex + 1} of {UploadFileTotal}")</div>
+            </div>
+        </div>
+    </div>
+}
+    
+
+<div class="row">
+    <div class="col-md-12 table-responsive">
+        <table class="table table-sm table-hover">
+            <thead>
+                <tr>
+                    <th width="2%"></th>
+                    <th width="58%" scope="col" @onclick="(() => Sort(nameof(Common.CustomerFile.PrettyFileName)))" class="pointer">
+                        File Name
+                        @if (Search.SortBy == nameof(Common.CustomerFile.PrettyFileName))
+                        {
+                            @if (Search.SortDirection == SortDirection.Ascending)
+                            {
+                                <i class="bi bi-chevron-down"></i>
+                            }
+                            else if (Search.SortDirection == SortDirection.Descending)
+                            {
+                                <i class="bi bi-chevron-up"></i>
+                            }
+                        }
+                    </th>
+                    <th width="20%" scope="col" @onclick="(() => Sort(nameof(Common.CustomerFile.CreatedOn)))" class="pointer">
+                        Uploaded
+                        @if (Search.SortBy == nameof(Common.CustomerFile.CreatedOn))
+                        {
+                            @if (Search.SortDirection == SortDirection.Ascending)
+                            {
+                                <i class="bi bi-chevron-down"></i>
+                            }
+                            else if (Search.SortDirection == SortDirection.Descending)
+                            {
+                                <i class="bi bi-chevron-up"></i>
+                            }
+                        }
+                    </th>
+                    <th width="20%" scope="col" @onclick="(() => Sort(nameof(Common.CustomerFile.FileSize)))" class="pointer">
+                        File Size
+                        @if (Search.SortBy == nameof(Common.CustomerFile.FileSize))
+                        {
+                            @if (Search.SortDirection == SortDirection.Ascending)
+                            {
+                                <i class="bi bi-chevron-down"></i>
+                            }
+                            else if (Search.SortDirection == SortDirection.Descending)
+                            {
+                                <i class="bi bi-chevron-up"></i>
+                            }
+                        }
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var file in Items)
+                {
+                    <tr class="pointer">
+                        <td>
+                            
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-three-dots"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <div class="dropdown-item pointer" @onclick="() => SelectCustomerFile(file.Id)">
+                                            <i class="bi bi-eye"></i> View
+                                        </div>
+                                    </li>
+                                    <li>
+                                        <div class="dropdown-item pointer" @onclick="() => DeleteCustomerFile(file.Id)">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </div>
+                                    </li
+                                    <li>
+                                        <div class="dropdown-item pointer" @onclick="() => RenameCustomerFile(file)">
+                                            <i class="bi bi-pencil-square"></i> Rename
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
+                        <td class="pt-2">
+                            @if(file.Editing == true)
+                            {
+                                <div class="input-group">
+                                    <input type="text" @bind="@file.PrettyFileName" class="form-control" placeholder="File Name">
+                                    <button class="btn btn-outline-secondary" type="button" @onclick="() => RenameCustomerFileSave(file)">Update</button>
+                                </div> 
+                            }
+                            else
+                            {
+                                <div>@file.PrettyFileName</div>
+                            }
+                        </td>
+                        <td class="pt-2">@file.CreatedOn.ToLocalTime()</td>
+                        <td class="pt-2">@file.FileSize.BytesToString()</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <nav aria-label="Page navigation example">
+            <ul class="pagination float-end">
+                @if ((Search.Page + 1) > 1)
+                {
+                    <li class="page-item pointer"><div class="page-link" @onclick="(() => SearchCustomerFiles(Search.Page - 1, false))">Previous</div></li>
+                }
+                <li class="page-item"><div class="page-link">Page @(TotalFound == 0 ? 0 : (Search.Page + 1)) of @(Math.Ceiling((double)TotalFound / PageSize))</div></li>
+                @if ((Search.Page + 1) < (Math.Ceiling((double)TotalFound / PageSize)))
+                {
+                    <li class="page-item pointer"><div class="page-link" @onclick="(() => SearchCustomerFiles(Search.Page + 1, false))">Next</div></li>
+                }
+            </ul>
+        </nav>
+    </div>
+</div>
+<div class="row mt-1 mb-5">
+    <div class="col-md-12">
+        <label class="float-end search-found">Found @TotalFound.ToString("N0") Files</label>
+    </div>
+</div>
+}
+
+
+
+
+
+
+
+
+@code {
+
+    [Parameter]
+    public string Id { get; set; }
+
+    private AzureTemplate.Common.Customer customer = new AzureTemplate.Common.Customer();
+    private bool Locked { get; set; }
+    
+    private Search Search { get; set; } = new Search();
+    private int PageSize { get; set; } = 15;
+    
+    private List<Common.CustomerFile> Items = new List<Common.CustomerFile>();
+    private int TotalFound { get; set; }
+    private int MaxAllowedFiles = 10000;
+    private int MaxAllowedSize = 1000 * 1024 * 1024;
+    private decimal UploadProgress { get; set; }
+    private int UploadFileTotal { get; set; }
+    private int UploadFileIndex { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id != null)
+        {
+            Locked = true;
+            
+            customer = await API.GetAsync<Common.Customer>($"api/v1/customer/{Id}");
+            if(customer == null)
+                _toastService.ShowError("Customer failed to load");
+
+            //Initialize the search of folder items
+            var cachedSearch = await localStorage.GetItemAsync<Search>($"CustomerFileSearch");
+            if (cachedSearch == null)
+            {
+                await SearchCustomerFiles(0, true);
+            }
+            else
+            {
+                Search = cachedSearch;
+                await SearchCustomerFiles(Search.Page, false);
+            }
+        }
+        else
+        {
+            Locked = false;
+        }
+    }
+
+    private void ToggleEditing()
+    {
+        Locked = false;
+    }
+
+    async private Task Save()
+    {
+        if (string.IsNullOrEmpty(Id))
+        {
+            var response = await API.PostAsync<string>("api/v1/customer", customer);
+            _navigationManager.NavigateTo($"customer/{response}");
+        }
+        else if (!string.IsNullOrEmpty(Id))
+        {
+            var response = await API.PutAsync($"api/v1/customer/{Id}", customer);
+            if (response)
+            {
+                Locked = true;
+            }
+        }
+    }
+
+    async private Task Delete()
+    {
+        var modal = _modalService.Show<ConfirmDialog>("Are you sure you want to delete this customer?");
+        var modalResult = await modal.Result;
+
+        if (modalResult.Cancelled) { }
+        else
+        {
+            var response = await API.DeleteAsync($"api/v1/customer/{Id}");
+            if(response)
+                _navigationManager.NavigateTo($"customers");
+        }
+    }
+
+    async private Task CancelChanges()
+    {
+        Locked = true;
+        customer = await API.GetAsync<Common.Customer>($"api/v1/customer/{Id}");
+    }
+
+    ///This method is used to upload a file to memory, read the bytes, and convert to base64. 
+    ///The base64 string is saved with the customer record. This demonstrates how to save an 
+    ///image in a DB - not ideal for all situations, but helpful to know how to do.
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        var format = e.File.ContentType;
+        long maxAllowedSize = 33_554_432;
+
+        if (e.File.Size > maxAllowedSize)
+        {
+            _toastService.ShowError("Selected file is to big. Please choose file less than 32mb");
+            return;
+        }
+
+        //If gif images will be uploaded, do not do this call - it will remove the animation
+        var resizedImageFile = await e.File.RequestImageFileAsync(format, 500, 500);
+
+        var buffer = new byte[resizedImageFile.Size];
+        await resizedImageFile.OpenReadStream(maxAllowedSize).ReadAsync(buffer);
+        var imageDataUrl = $"data:{format};base64,{Convert.ToBase64String(buffer)}";
+
+        customer.ImageBase64 = imageDataUrl;
+    }
+
+    private void RemoveFile()
+    {
+        customer.ImageBase64 = null;
+    }
+
+
+
+
+
+    async private Task SearchCustomerFiles(int? page, bool reset)
+    {
+        if (reset == true)
+        {
+            Search = new Search();
+            Search.SortBy = nameof(AzureTemplate.Common.CustomerFile.BlobId);
+            page = null;
+        }
+
+        Search = new Search()
+        {
+            FilterText = string.IsNullOrEmpty(Search?.FilterText) ? null : Search?.FilterText,
+            Page = page == null ? Search.Page : (int)page,
+            PageSize = PageSize,
+            SortBy = Search.SortBy,
+            SortDirection = Search.SortDirection
+        };
+
+        await localStorage.SetItemAsync($"CustomerFileSearch", Search);
+
+        var response = await API.PostAsync<SearchResponse<CustomerFile>>($"api/v1/customer/{Id}/files", Search);
+        Items = response.Results;
+        TotalFound = response.Total;
+    }
+
+    async private Task Sort(string column)
+    {
+        Search.SortBy = column;
+        Search.SortDirection = Search.SortDirection == SortDirection.Ascending ? SortDirection.Descending : SortDirection.Ascending;
+
+        await SearchCustomerFiles(Search.Page, false);
+    }
+
+    private async Task SelectCustomerFile(string customerFileId)
+    {
+        var selectedCustomerFile = await API.GetAsync<Common.CustomerFile>($"api/v1/customer/{Id}/file/{customerFileId}");
+        await JSRuntime.InvokeVoidAsync("openInNewTab", selectedCustomerFile.ItemUri);
+    }
+
+    private async Task DeleteCustomerFile(string customerFileId)
+    {
+        var modal = _modalService.Show<ConfirmDialog>("Are you sure you want to delete this file?");
+        var modalResult = await modal.Result;
+
+        if (modalResult.Cancelled) { }
+        else
+        {
+             await API.DeleteAsync($"api/v1/customer/{Id}/file/{customerFileId}");
+             Items = Items.Where(x => x.Id != customerFileId).ToList();
+        }
+    }
+
+    private void RenameCustomerFile(Common.CustomerFile customerFile)
+    {
+        customerFile.Editing = true;
+    }
+    private async Task RenameCustomerFileSave(Common.CustomerFile customerFile)
+    {
+        customerFile.Editing = false;
+        await API.PutAsync($"api/v1/customer/{Id}/file/{customerFile.Id}", customerFile);
+    }
+
+    //https://stackoverflow.com/questions/65808332/uploading-file-from-blazor-webassembly-app-directly-to-blob-storage
+    ///
+    ///Customer files are uploaded directly to Azure Blob Storage. The API generates an upload SAS, returns it to the Client app, and the Client app uses the SAS to upload the files directly to blob storage.
+    ///
+    async private Task UploadCustomerFiles(InputFileChangeEventArgs e)
+    {
+        UploadFileTotal = e.FileCount;
+        foreach (var file in e.GetMultipleFiles(MaxAllowedFiles))
+        {
+            var blobUri = await API.GetAsync<SasUri>($"api/v1/customer/{Id}/upload", false);
+
+            BlobClient blobClient = new BlobClient(blobUri.Sas, new BlobClientOptions());
+
+            var res = await blobClient.UploadAsync(file.OpenReadStream(MaxAllowedSize), new BlobUploadOptions
+            {
+                HttpHeaders = new BlobHttpHeaders { ContentType = file.ContentType },
+                TransferOptions = new StorageTransferOptions
+                {
+                    InitialTransferSize = 1024 * 1024,
+                    MaximumConcurrency = 10
+                },
+                ProgressHandler = new Progress<long>((progress) =>
+                {
+                    UploadProgress = ((((decimal)progress)/((decimal)file.Size)/e.FileCount)+((decimal)UploadFileIndex/(decimal)(e.FileCount))) * 100;
+                    StateHasChanged();
+                })
+            });
+
+            Common.UploadCustomerFile upload = new UploadCustomerFile()
+            {
+                PrettyFileName = file.Name,
+                MimeType = file.ContentType,
+                BlobId = blobUri.BlobId,
+                FileSize = file.Size
+            };
+            var response = await API.PostAsync<CustomerFile>($"api/v1/customer/{Id}/file", upload, false);
+            //Only add the newly uploaded file when there is room on the current page.
+            if (response != null && Items.Count < Search.PageSize)
+            {
+                Items.Add(response);
+                TotalFound++;
+            }
+
+            UploadFileIndex++;
+
+            StateHasChanged();
+        }
+
+        //Reset progress bar
+        UploadFileTotal = 0;
+        UploadFileIndex = 0;
+        UploadProgress = 0;
+
+        _toastService.ShowSuccess("Upload Completed");
+    }
+
+}
+
