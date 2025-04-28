@@ -5,6 +5,9 @@ This application is based on my [BlazorTemplate](https://github.com/dahln/Blazor
 
 Some of the page and components in the WASM client app are copied from or derived from the stock Microsoft templates, for example login and register.
 
+## Demo 
+https://azure.dahln.com
+
 ## Technologies
  - .NET 8 & C#
  - Web API
